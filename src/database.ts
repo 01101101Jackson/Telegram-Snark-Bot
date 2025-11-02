@@ -6,10 +6,11 @@ interface UserData {
   username?: string;
   language: string;
   freeMessagesUsed: number;
-  subscriptionStatus: 'free' | 'active' | 'expired';
+  subscriptionStatus: 'free' | 'active' | 'expired' | 'vip';
   subscriptionExpiry?: Date;
   monthlyQuotaUsed: number;
   totalMessagesUsed: number;
+  isVip: boolean;
   createdAt: Date;
   lastUsed: Date;
 }
@@ -76,6 +77,7 @@ class Database {
       subscriptionStatus: 'free',
       monthlyQuotaUsed: 0,
       totalMessagesUsed: 0,
+      isVip: false,
       createdAt: new Date(),
       lastUsed: new Date(),
     };
@@ -114,6 +116,11 @@ class Database {
   canUserSendMessage(userId: number): { allowed: boolean; reason?: string } {
     const user = this.users.get(userId);
     if (!user) return { allowed: false, reason: 'User not found' };
+
+    // VIP users have unlimited access
+    if (user.isVip || user.subscriptionStatus === 'vip') {
+      return { allowed: true };
+    }
 
     // Check if free tier
     if (user.subscriptionStatus === 'free') {
@@ -173,6 +180,39 @@ class Database {
       this.users.set(userId, user);
       this.save();
     }
+  }
+
+  // VIP Management
+  grantVip(userId: number) {
+    const user = this.users.get(userId);
+    if (user) {
+      user.isVip = true;
+      user.subscriptionStatus = 'vip';
+      this.users.set(userId, user);
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  revokeVip(userId: number) {
+    const user = this.users.get(userId);
+    if (user) {
+      user.isVip = false;
+      user.subscriptionStatus = 'free';
+      this.users.set(userId, user);
+      this.save();
+      return true;
+    }
+    return false;
+  }
+
+  getAllUsers(): UserData[] {
+    return Array.from(this.users.values());
+  }
+
+  getVipUsers(): UserData[] {
+    return this.getAllUsers().filter(u => u.isVip);
   }
 }
 

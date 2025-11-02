@@ -131,7 +131,13 @@ bot.onText(/\/status/, (msg) => {
 
   let statusMessage = '';
 
-  if (user.subscriptionStatus === 'free') {
+  if (user.isVip || user.subscriptionStatus === 'vip') {
+    statusMessage = `📊 *Your Status*\n\n` +
+      `Plan: VIP 👑\n` +
+      `Responses: UNLIMITED ∞\n` +
+      `Total messages sent: ${user.totalMessagesUsed}\n\n` +
+      `You have unlimited access! Enjoy! 💎`;
+  } else if (user.subscriptionStatus === 'free') {
     const remaining = 5 - user.freeMessagesUsed;
     statusMessage = `📊 *Your Status*\n\n` +
       `Plan: Free Trial\n` +
@@ -155,6 +161,150 @@ bot.onText(/\/status/, (msg) => {
   }
 
   bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
+});
+
+// ===== ADMIN COMMANDS =====
+const isAdmin = (chatId: number): boolean => {
+  const adminId = parseInt(process.env.ADMIN_CHAT_ID || '0');
+  return chatId === adminId;
+};
+
+// Grant VIP access
+bot.onText(/\/admin_vip (\d+)/, (msg, match) => {
+  const chatId = msg.chat.id;
+
+  if (!isAdmin(chatId)) {
+    bot.sendMessage(chatId, '❌ Admin access required.');
+    return;
+  }
+
+  const targetUserId = parseInt(match![1]);
+  const success = db.grantVip(targetUserId);
+
+  if (success) {
+    bot.sendMessage(chatId, `✅ VIP access granted to user ${targetUserId}\n\nThey now have UNLIMITED responses!`);
+    // Notify the user
+    bot.sendMessage(targetUserId, '🎉 *Congratulations!*\n\nYou have been granted VIP access with UNLIMITED responses! 💎\n\nEnjoy!', { parse_mode: 'Markdown' }).catch(() => {});
+  } else {
+    bot.sendMessage(chatId, `❌ User ${targetUserId} not found. They need to /start the bot first.`);
+  }
+});
+
+// Revoke VIP access
+bot.onText(/\/admin_revoke (\d+)/, (msg, match) => {
+  const chatId = msg.chat.id;
+
+  if (!isAdmin(chatId)) {
+    bot.sendMessage(chatId, '❌ Admin access required.');
+    return;
+  }
+
+  const targetUserId = parseInt(match![1]);
+  const success = db.revokeVip(targetUserId);
+
+  if (success) {
+    bot.sendMessage(chatId, `✅ VIP access revoked for user ${targetUserId}`);
+    bot.sendMessage(targetUserId, 'ℹ️ Your VIP access has been revoked. You now have the free tier (5 responses).').catch(() => {});
+  } else {
+    bot.sendMessage(chatId, `❌ User ${targetUserId} not found.`);
+  }
+});
+
+// List all VIP users
+bot.onText(/\/admin_vips/, (msg) => {
+  const chatId = msg.chat.id;
+
+  if (!isAdmin(chatId)) {
+    bot.sendMessage(chatId, '❌ Admin access required.');
+    return;
+  }
+
+  const vips = db.getVipUsers();
+
+  if (vips.length === 0) {
+    bot.sendMessage(chatId, '📋 No VIP users yet.');
+    return;
+  }
+
+  let message = `👑 *VIP Users (${vips.length})*\n\n`;
+  vips.forEach(user => {
+    message += `• ${user.userId} (@${user.username || 'unknown'})\n  Total messages: ${user.totalMessagesUsed}\n\n`;
+  });
+
+  bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+});
+
+// List all users
+bot.onText(/\/admin_users/, (msg) => {
+  const chatId = msg.chat.id;
+
+  if (!isAdmin(chatId)) {
+    bot.sendMessage(chatId, '❌ Admin access required.');
+    return;
+  }
+
+  const allUsers = db.getAllUsers();
+  const stats = {
+    total: allUsers.length,
+    vip: allUsers.filter(u => u.isVip).length,
+    premium: allUsers.filter(u => u.subscriptionStatus === 'active').length,
+    free: allUsers.filter(u => u.subscriptionStatus === 'free').length,
+  };
+
+  let message = `📊 *User Statistics*\n\n`;
+  message += `Total Users: ${stats.total}\n`;
+  message += `VIP: ${stats.vip} 👑\n`;
+  message += `Premium: ${stats.premium} 💎\n`;
+  message += `Free: ${stats.free}\n\n`;
+  message += `Recent users:\n`;
+
+  const recent = allUsers
+    .sort((a, b) => b.lastUsed.getTime() - a.lastUsed.getTime())
+    .slice(0, 10);
+
+  recent.forEach(user => {
+    const status = user.isVip ? '👑 VIP' : user.subscriptionStatus === 'active' ? '💎 Premium' : '🆓 Free';
+    message += `${user.userId} - ${status} (${user.totalMessagesUsed} msgs)\n`;
+  });
+
+  bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+});
+
+// Manually activate subscription
+bot.onText(/\/admin_activate (\d+)/, (msg, match) => {
+  const chatId = msg.chat.id;
+
+  if (!isAdmin(chatId)) {
+    bot.sendMessage(chatId, '❌ Admin access required.');
+    return;
+  }
+
+  const targetUserId = parseInt(match![1]);
+  db.activateSubscription(targetUserId);
+  bot.sendMessage(chatId, `✅ 1-month subscription activated for user ${targetUserId}`);
+  bot.sendMessage(targetUserId, '🎉 Your premium subscription has been activated!\n\nYou now have 100 responses/month.', { parse_mode: 'Markdown' }).catch(() => {});
+});
+
+// Admin help
+bot.onText(/\/admin/, (msg) => {
+  const chatId = msg.chat.id;
+
+  if (!isAdmin(chatId)) {
+    return;
+  }
+
+  const helpMessage = `🔧 *Admin Commands*\n\n` +
+    `*VIP Management:*\n` +
+    `/admin_vip <userId> - Grant unlimited access\n` +
+    `/admin_revoke <userId> - Remove VIP status\n` +
+    `/admin_vips - List all VIP users\n\n` +
+    `*Subscription:*\n` +
+    `/admin_activate <userId> - Give 1 month premium\n\n` +
+    `*Stats:*\n` +
+    `/admin_users - View user statistics\n\n` +
+    `*Your Chat ID:* ${chatId}`;
+
+  bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
 });
 
 // Handle any message (including forwarded ones)
