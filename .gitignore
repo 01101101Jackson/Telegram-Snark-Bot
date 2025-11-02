@@ -8,6 +8,9 @@ node_modules/
 *.log
 logs/
 
+# Database
+data/
+
 # OS files
 .DS_Store
 Thumbs.db
