@@ -1,6 +1,8 @@
 import TelegramBot from 'node-telegram-bot-api';
 import OpenAI from 'openai';
 import * as dotenv from 'dotenv';
+import { db } from './database';
+import { languages, getMessage, getLanguagePrompt, LanguageCode } from './languages';
 
 // Load environment variables
 dotenv.config();
@@ -55,6 +57,106 @@ const toxicLevels = {
   }
 };
 
+// Handle /start command
+bot.onText(/\/start/, (msg) => {
+  const chatId = msg.chat.id;
+  const username = msg.from?.username;
+
+  // Get or create user
+  let user = db.getUser(chatId);
+  if (!user) {
+    user = db.createUser(chatId, username);
+  }
+
+  const welcomeMessage = getMessage(user.language as LanguageCode, 'welcome');
+  bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
+});
+
+// Handle /language command
+bot.onText(/\/language/, (msg) => {
+  const chatId = msg.chat.id;
+  let user = db.getUser(chatId);
+
+  if (!user) {
+    user = db.createUser(chatId, msg.from?.username);
+  }
+
+  const languageMessage = getMessage(user.language as LanguageCode, 'chooseLanguage');
+
+  const keyboard = {
+    inline_keyboard: Object.entries(languages).map(([code, lang]) => [
+      { text: lang.name, callback_data: `lang_${code}` }
+    ])
+  };
+
+  bot.sendMessage(chatId, languageMessage, {
+    parse_mode: 'Markdown',
+    reply_markup: keyboard
+  });
+});
+
+// Handle /subscribe command
+bot.onText(/\/subscribe/, (msg) => {
+  const chatId = msg.chat.id;
+  let user = db.getUser(chatId);
+
+  if (!user) {
+    user = db.createUser(chatId, msg.from?.username);
+  }
+
+  const subscribeMessage = getMessage(user.language as LanguageCode, 'subscribeInfo');
+
+  const keyboard = {
+    inline_keyboard: [
+      [{ text: '💎 Subscribe $2.99/month', url: 'https://buy.stripe.com/test_PLACEHOLDER' }],
+      [{ text: '❓ Contact Support', url: 'https://t.me/YOUR_SUPPORT' }]
+    ]
+  };
+
+  bot.sendMessage(chatId, subscribeMessage, {
+    parse_mode: 'Markdown',
+    reply_markup: keyboard
+  });
+});
+
+// Handle /status command
+bot.onText(/\/status/, (msg) => {
+  const chatId = msg.chat.id;
+  const user = db.getUser(chatId);
+
+  if (!user) {
+    bot.sendMessage(chatId, 'User not found. Send /start to begin.');
+    return;
+  }
+
+  let statusMessage = '';
+
+  if (user.subscriptionStatus === 'free') {
+    const remaining = 5 - user.freeMessagesUsed;
+    statusMessage = `📊 *Your Status*\n\n` +
+      `Plan: Free Trial\n` +
+      `Responses used: ${user.freeMessagesUsed}/5\n` +
+      `Remaining: ${remaining}\n\n` +
+      `Upgrade with /subscribe for 100 responses/month!`;
+  } else if (user.subscriptionStatus === 'active') {
+    const remaining = 100 - user.monthlyQuotaUsed;
+    const expiryDate = user.subscriptionExpiry
+      ? user.subscriptionExpiry.toLocaleDateString()
+      : 'N/A';
+    statusMessage = `📊 *Your Status*\n\n` +
+      `Plan: Premium 💎\n` +
+      `Responses used: ${user.monthlyQuotaUsed}/100\n` +
+      `Remaining: ${remaining}\n` +
+      `Renewal date: ${expiryDate}`;
+  } else {
+    statusMessage = `📊 *Your Status*\n\n` +
+      `Plan: Expired\n\n` +
+      `Renew with /subscribe to continue!`;
+  }
+
+  bot.sendMessage(chatId, statusMessage, { parse_mode: 'Markdown' });
+});
+
 // Handle any message (including forwarded ones)
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
@@ -68,6 +170,32 @@ bot.on('message', async (msg) => {
   // Check if message has content
   if (!messageText) {
     bot.sendMessage(chatId, '❌ Please send or forward a text message.');
+    return;
+  }
+
+  // Get or create user
+  let user = db.getUser(chatId);
+  if (!user) {
+    user = db.createUser(chatId, msg.from?.username);
+  }
+
+  // Check if user can send message
+  const canSend = db.canUserSendMessage(chatId);
+
+  if (!canSend.allowed) {
+    if (canSend.reason === 'free_limit_reached') {
+      const message = getMessage(user.language as LanguageCode, 'freeLimitReached');
+      bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } else if (canSend.reason === 'quota_exceeded') {
+      const expiryDate = user.subscriptionExpiry
+        ? user.subscriptionExpiry.toLocaleDateString()
+        : 'N/A';
+      const message = getMessage(user.language as LanguageCode, 'quotaExceeded', { date: expiryDate });
+      bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    } else if (canSend.reason === 'subscription_expired') {
+      const message = getMessage(user.language as LanguageCode, 'subscriptionExpired');
+      bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    }
     return;
   }
 
@@ -88,10 +216,12 @@ bot.on('message', async (msg) => {
     ]
   };
 
+  const chooseMessage = getMessage(user.language as LanguageCode, 'chooseLevel');
+
   // Send message with response level options
   bot.sendMessage(
     chatId,
-    '🎯 Choose your response level:',
+    chooseMessage,
     { reply_markup: keyboard }
   );
 });
@@ -105,118 +235,110 @@ bot.on('callback_query', async (query) => {
     return;
   }
 
-  // Get the selected level
-  const level = query.data?.replace('level_', '') as keyof typeof toxicLevels;
+  const data = query.data || '';
 
-  if (!level || !toxicLevels[level]) {
-    bot.answerCallbackQuery(query.id, { text: '❌ Invalid level selected' });
+  // Handle language selection
+  if (data.startsWith('lang_')) {
+    const langCode = data.replace('lang_', '') as LanguageCode;
+
+    db.updateUser(chatId, { language: langCode });
+
+    const message = getMessage(langCode, 'languageSet', {
+      language: languages[langCode].name
+    });
+
+    bot.answerCallbackQuery(query.id, { text: '✅ Language updated!' });
+    bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
     return;
   }
 
-  // Get the stored message
-  const session = userSessions.get(chatId);
-  if (!session) {
-    bot.answerCallbackQuery(query.id, { text: '❌ Session expired. Please send the message again.' });
-    return;
-  }
+  // Handle toxic level selection
+  if (data.startsWith('level_')) {
+    const level = data.replace('level_', '') as keyof typeof toxicLevels;
 
-  // Answer the callback query to remove loading state
-  bot.answerCallbackQuery(query.id, { text: `Generating ${toxicLevels[level].name} response...` });
-
-  // Edit the message to show loading
-  bot.editMessageText(
-    `⏳ Generating your ${toxicLevels[level].name} response...`,
-    {
-      chat_id: chatId,
-      message_id: messageId
+    if (!level || !toxicLevels[level]) {
+      bot.answerCallbackQuery(query.id, { text: '❌ Invalid level selected' });
+      return;
     }
-  );
 
-  try {
-    // Generate response using OpenAI
-    const response = await generateResponse(session.messageText, toxicLevels[level].prompt);
+    // Get user
+    let user = db.getUser(chatId);
+    if (!user) {
+      user = db.createUser(chatId, query.from.username);
+    }
 
-    // Send the generated response
-    bot.sendMessage(
-      chatId,
-      `${toxicLevels[level].name}\n\n"${response}"`,
-      { parse_mode: 'Markdown' }
-    );
+    // Get the stored message
+    const session = userSessions.get(chatId);
+    if (!session) {
+      bot.answerCallbackQuery(query.id, { text: '❌ Session expired. Please send the message again.' });
+      return;
+    }
 
-    // Edit the loading message
+    // Answer the callback query to remove loading state
+    bot.answerCallbackQuery(query.id, { text: `Generating ${toxicLevels[level].name} response...` });
+
+    // Edit the message to show loading
+    const generatingMessage = getMessage(user.language as LanguageCode, 'generating');
     bot.editMessageText(
-      `✅ Response generated with ${toxicLevels[level].name} level!`,
+      generatingMessage,
       {
         chat_id: chatId,
         message_id: messageId
       }
     );
 
-    // Clean up session
-    userSessions.delete(chatId);
+    try {
+      // Generate response using OpenAI
+      const languageInstruction = getLanguagePrompt(user.language as LanguageCode);
+      const fullPrompt = toxicLevels[level].prompt + ' ' + languageInstruction;
 
-  } catch (error) {
-    console.error('Error generating response:', error);
-    bot.editMessageText(
-      '❌ Error generating response. Please try again.',
-      {
-        chat_id: chatId,
-        message_id: messageId
+      const response = await generateResponse(session.messageText, fullPrompt);
+
+      // Increment message count
+      db.incrementMessageCount(chatId);
+
+      // Send the generated response
+      bot.sendMessage(
+        chatId,
+        `${toxicLevels[level].name}\n\n"${response}"`,
+        { parse_mode: 'Markdown' }
+      );
+
+      // Show remaining quota
+      const updatedUser = db.getUser(chatId)!;
+      let remaining = '';
+      if (updatedUser.subscriptionStatus === 'free') {
+        const count = 5 - updatedUser.freeMessagesUsed;
+        remaining = getMessage(user.language as LanguageCode, 'remainingFree', { count: count.toString() });
+      } else if (updatedUser.subscriptionStatus === 'active') {
+        const count = 100 - updatedUser.monthlyQuotaUsed;
+        remaining = getMessage(user.language as LanguageCode, 'remainingPremium', { count: count.toString() });
       }
-    );
+
+      // Edit the loading message
+      const successMessage = getMessage(user.language as LanguageCode, 'success');
+      bot.editMessageText(
+        `${successMessage}\n${remaining}`,
+        {
+          chat_id: chatId,
+          message_id: messageId
+        }
+      );
+
+      // Clean up session
+      userSessions.delete(chatId);
+
+    } catch (error) {
+      console.error('Error generating response:', error);
+      bot.editMessageText(
+        '❌ Error generating response. Please try again.',
+        {
+          chat_id: chatId,
+          message_id: messageId
+        }
+      );
+    }
   }
-});
-
-// Handle /start command
-bot.onText(/\/start/, (msg) => {
-  const chatId = msg.chat.id;
-  const welcomeMessage = `
-🤖 *Welcome to the Toxic Response Bot!*
-
-Send or forward any message to this bot, and I'll help you craft the perfect response based on your chosen toxic level!
-
-📝 *How to use:*
-1. Send or forward a message to this bot
-2. Choose your desired response level
-3. Get your AI-generated response!
-
-🎭 *Available Response Levels:*
-${toxicLevels['1'].name} - ${toxicLevels['1'].description}
-${toxicLevels['2'].name} - ${toxicLevels['2'].description}
-${toxicLevels['3'].name} - ${toxicLevels['3'].description}
-${toxicLevels['4'].name} - ${toxicLevels['4'].description}
-${toxicLevels['5'].name} - ${toxicLevels['5'].description}
-
-Ready to start? Just send me a message! 🚀
-`;
-
-  bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
-});
-
-// Handle /help command
-bot.onText(/\/help/, (msg) => {
-  const chatId = msg.chat.id;
-  const helpMessage = `
-📖 *Help & Instructions*
-
-*How to use this bot:*
-1. Send or forward any text message to this bot
-2. Select your preferred toxic response level from the buttons
-3. Receive your AI-generated response instantly!
-
-*Commands:*
-/start - Start the bot and see welcome message
-/help - Show this help message
-
-*Tips:*
-• You can forward messages from any chat
-• Each response is generated fresh by AI
-• Responses are kept concise (1-2 sentences)
-
-Need more help? Just send a message and try it out! 💪
-`;
-
-  bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
 });
 
 // Function to generate response using OpenAI
@@ -246,3 +368,4 @@ bot.on('polling_error', (error) => {
 });
 
 console.log('🤖 Telegram Toxic Response Bot is running...');
+console.log('Features: Multi-language, Free tier (5 msgs), Subscription ($2.99/100 msgs)');
