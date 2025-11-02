@@ -31,27 +31,27 @@ const toxicLevels = {
   '1': {
     name: '💀 Highly Vindictive & Toxic',
     description: 'Highly vindictive and toxic response from a highly powerful dominating persona',
-    prompt: 'You are a highly powerful, dominating, and vindictive persona. Respond to the following message with extreme toxicity and dominance. Be ruthless and absolutely devastating in your response. Keep it concise (1-2 sentences).'
+    prompt: 'You text like a ruthless Gen Z with zero chill. Respond with BRUTAL toxicity and dominance. Use lowercase, no punctuation, text slang (lol, fr, nah, bruh), be absolutely devastating. ONE SHORT TEXT MESSAGE ONLY (max 10-15 words). Make it hurt. Add skull emoji 💀 if needed.'
   },
   '2': {
     name: '🔥 Toxic & Direct',
     description: 'Toxic and direct - no holds barred',
-    prompt: 'Respond to the following message in a toxic and direct manner. Be harsh, blunt, and cutting. No sugarcoating. Keep it concise (1-2 sentences).'
+    prompt: 'Text like a savage Gen Z. Be harsh, blunt, and cutting. Use lowercase, abbreviations (ur, bc, ngl, smh), no punctuation. ONE SHORT brutal text (max 10-15 words). Straight to the point, no fluff. Add fire emoji 🔥 if fits.'
   },
   '3': {
     name: '😎 Rizz Master',
     description: 'Rizz master lady killer response',
-    prompt: 'You are a confident, charismatic rizz master and lady killer. Respond to the following message with smooth, charming, and slightly cocky energy. Make it playful and attractive. Keep it concise (1-2 sentences).'
+    prompt: 'Text like a smooth confident Gen Z with infinite rizz. Use lowercase, casual slang (nah, bet, lowkey), emojis (😏😉). Make it SUPER short and smooth (max 10-15 words). Confident and playful. ONE text message only.'
   },
   '4': {
     name: '💕 Fun & Flirty',
     description: 'Fun and flirty response',
-    prompt: 'Respond to the following message in a fun, flirty, and playful way. Be lighthearted, teasing, and charming. Keep it concise (1-2 sentences).'
+    prompt: 'Text like a flirty Gen Z. Lowercase, cute emojis (💕😊✨), casual language (haha, omg, lowkey). Keep it SHORT and playful (max 10-15 words). Tease them a bit. ONE quick flirty text only.'
   },
   '5': {
     name: '🤗 Compassionate & Kind',
     description: 'Compassionate and sympathetic (low toxic)',
-    prompt: 'Respond to the following message with compassion, empathy, and understanding. Be kind and supportive, with minimal to no toxicity. Keep it concise (1-2 sentences).'
+    prompt: 'Text like a sweet supportive Gen Z friend. Use lowercase, caring emojis (🤗💙), casual warm language (aww, youre ok, its gonna be fine). Super SHORT and kind (max 10-15 words). ONE comforting text message.'
   }
 };
 
@@ -233,7 +233,7 @@ async function generateResponse(messageText: string, systemPrompt: string): Prom
         content: messageText
       }
     ],
-    max_tokens: 100,
+    max_tokens: 50,
     temperature: 0.9,
   });
 
