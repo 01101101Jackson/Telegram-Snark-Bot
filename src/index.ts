@@ -78,6 +78,22 @@ bot.onText(/\/start/, (msg) => {
   const welcomeMessage = `💀 **RIZZ KING BOT**\n\n*Don't be yourself, be better.*\n\nForward any message and I'll craft you the PERFECT toxic reply.\n\n✨ **5 FREE responses** to get you started\n\n**Commands:**\n/reset - Start fresh, new target\n/language - Change language\n/status - Check your quota\n\nLet's get it 🔥`;
 
   bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
+
+  // If user hasn't configured, show configuration immediately
+  if (!user.userGender || !user.targetGender) {
+    const configKeyboard = {
+      inline_keyboard: [
+        [{ text: '🔥 dude', callback_data: 'start_config_man' }],
+        [{ text: '💋 babe', callback_data: 'start_config_woman' }]
+      ]
+    };
+
+    bot.sendMessage(
+      chatId,
+      '💀 **WHO ARE YOU?**',
+      { parse_mode: 'Markdown', reply_markup: configKeyboard }
+    );
+  }
 });
 
 // Handle /language command
@@ -456,6 +472,49 @@ bot.on('callback_query', async (query) => {
 
     bot.answerCallbackQuery(query.id, { text: '✅ Language updated!' });
     bot.sendMessage(chatId, message, { parse_mode: 'Markdown' });
+    return;
+  }
+
+  // Handle initial gender selection from /start (start_config_man / start_config_woman)
+  if (data === 'start_config_man' || data === 'start_config_woman') {
+    const userGender = data === 'start_config_man' ? 'man' : 'woman';
+
+    // Save to database immediately
+    db.updateUser(chatId, { userGender });
+
+    bot.answerCallbackQuery(query.id);
+
+    // Ask for target gender
+    const targetKeyboard = {
+      inline_keyboard: [
+        [{ text: '👯 bitches', callback_data: 'start_target_woman' }],
+        [{ text: '💪 homies', callback_data: 'start_target_man' }]
+      ]
+    };
+
+    bot.editMessageText('💬 **WHO ARE YOU TEXTING?**', {
+      chat_id: chatId,
+      message_id: messageId,
+      parse_mode: 'Markdown',
+      reply_markup: targetKeyboard
+    });
+    return;
+  }
+
+  // Handle initial target selection from /start (start_target_man / start_target_woman)
+  if (data === 'start_target_man' || data === 'start_target_woman') {
+    const targetGender = data === 'start_target_man' ? 'man' : 'woman';
+
+    // Save to database
+    db.updateUser(chatId, { targetGender });
+
+    bot.answerCallbackQuery(query.id, { text: '✅ All set! Send a message to start.' });
+
+    bot.editMessageText('🔥 **READY TO GO!**\n\nForward or send any message and I\'ll give you toxic reply options.', {
+      chat_id: chatId,
+      message_id: messageId,
+      parse_mode: 'Markdown'
+    });
     return;
   }
 
