@@ -26,6 +26,9 @@ interface UserSession {
   messageId: number;
   userGender?: 'man' | 'woman';
   targetGender?: 'man' | 'woman';
+  lastResponse?: string;  // Store last generated response
+  lastLevel?: string;     // Store last level used
+  responseMessageId?: number; // Store the message ID of the response
 }
 
 const userSessions = new Map<number, UserSession>();
@@ -588,6 +591,86 @@ bot.on('callback_query', async (query) => {
     return;
   }
 
+  // Handle "Keep This" - save response and increment count
+  if (data === 'keep_response') {
+    const session = userSessions.get(chatId);
+    if (!session || !session.lastResponse) {
+      bot.answerCallbackQuery(query.id, { text: '❌ Session expired' });
+      return;
+    }
+
+    // NOW save to chat history
+    db.addToChatHistory(chatId, 'user', session.messageText);
+    db.addToChatHistory(chatId, 'assistant', session.lastResponse);
+
+    // Increment message count (only charge once they keep it)
+    db.incrementMessageCount(chatId);
+
+    // Remove the action buttons
+    if (session.responseMessageId) {
+      bot.editMessageReplyMarkup(
+        { inline_keyboard: [] },
+        {
+          chat_id: chatId,
+          message_id: session.responseMessageId
+        }
+      ).catch(() => {});
+    }
+
+    bot.answerCallbackQuery(query.id, { text: '✅ Response saved!' });
+
+    // Show remaining quota
+    const user = db.getUser(chatId)!;
+    let remaining = '';
+    if (user.subscriptionStatus === 'free') {
+      const count = 5 - user.freeMessagesUsed;
+      remaining = `\n\nResponses remaining: ${count}/5`;
+    } else if (user.subscriptionStatus === 'active') {
+      const count = 100 - user.monthlyQuotaUsed;
+      remaining = `\n\nResponses remaining: ${count}/100`;
+    } else if (user.isVip) {
+      remaining = '\n\nUnlimited responses (VIP) ∞';
+    }
+
+    if (remaining) {
+      bot.sendMessage(chatId, `💾 **Saved to conversation history!**${remaining}`, { parse_mode: 'Markdown' });
+    }
+
+    // Clean up session
+    userSessions.delete(chatId);
+    return;
+  }
+
+  // Handle "Try Another" - show response options again
+  if (data === 'retry_response') {
+    const session = userSessions.get(chatId);
+    if (!session) {
+      bot.answerCallbackQuery(query.id, { text: '❌ Session expired. Send message again.' });
+      return;
+    }
+
+    bot.answerCallbackQuery(query.id, { text: '🔄 Choose another style...' });
+
+    // Show response levels again (6 options)
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
+        [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
+        [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
+        [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
+        [{ text: responseLevels['5'].name, callback_data: 'level_5' }],
+        [{ text: responseLevels['6'].name, callback_data: 'level_6' }]
+      ]
+    };
+
+    bot.sendMessage(
+      chatId,
+      '🎯 **PICK YOUR WEAPON**\n\nChoose your response style:',
+      { parse_mode: 'Markdown', reply_markup: keyboard }
+    );
+    return;
+  }
+
   // Handle response level selection
   if (data.startsWith('level_')) {
     const level = data.replace('level_', '') as keyof typeof responseLevels;
@@ -649,43 +732,39 @@ bot.on('callback_query', async (query) => {
 
       const response = await generateResponse(session.messageText, fullPrompt, chatHistory);
 
-      // Save to chat history
-      db.addToChatHistory(chatId, 'user', session.messageText);
-      db.addToChatHistory(chatId, 'assistant', response);
+      // Store response in session (DON'T save to history yet - let user decide)
+      session.lastResponse = response;
+      session.lastLevel = level;
 
-      // Increment message count
-      db.incrementMessageCount(chatId);
-
-      // Send the generated response
-      bot.sendMessage(
+      // Send the generated response with action buttons
+      const sentMessage = await bot.sendMessage(
         chatId,
         `${responseLevels[level].name}\n\n"${response}"`,
-        { parse_mode: 'Markdown' }
+        {
+          parse_mode: 'Markdown',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: '✅ Keep This', callback_data: 'keep_response' },
+                { text: '🔄 Try Another', callback_data: 'retry_response' }
+              ]
+            ]
+          }
+        }
       );
 
-      // Show remaining quota
-      const updatedUser = db.getUser(chatId)!;
-      let remaining = '';
-      if (updatedUser.subscriptionStatus === 'free') {
-        const count = 5 - updatedUser.freeMessagesUsed;
-        remaining = getMessage(user.language as LanguageCode, 'remainingFree', { count: count.toString() });
-      } else if (updatedUser.subscriptionStatus === 'active') {
-        const count = 100 - updatedUser.monthlyQuotaUsed;
-        remaining = getMessage(user.language as LanguageCode, 'remainingPremium', { count: count.toString() });
-      }
+      // Store the response message ID
+      session.responseMessageId = sentMessage.message_id;
 
-      // Edit the loading message
+      // Edit the loading message to show success
       const successMessage = getMessage(user.language as LanguageCode, 'success');
       bot.editMessageText(
-        `${successMessage}\n${remaining}`,
+        successMessage,
         {
           chat_id: chatId,
           message_id: messageId
         }
       );
-
-      // Clean up session
-      userSessions.delete(chatId);
 
     } catch (error) {
       console.error('Error generating response:', error);
