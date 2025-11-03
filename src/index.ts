@@ -102,7 +102,7 @@ bot.onText(/\/start/, (msg) => {
     user = db.createUser(chatId, username);
   }
 
-  const welcomeMessage = `👑 **RIZZ KING BOT**\n\n*Don't be yourself, be better.*\n\nForward any message and I'll craft you the PERFECT toxic reply.\n\n✨ **5 FREE responses** to get you started\n\n**Commands:**\n/reset - Start fresh, new target\n/language - Change language\n/status - Check your quota\n\nLet's get it 🔥`;
+  const welcomeMessage = `👑 **RIZZ KING BOT**\n\n*Don't be yourself, be better.*\n\nForward any message and I'll craft you the PERFECT toxic reply.\n\n✨ **50 FREE responses** to get you started\n\n**Commands:**\n/reset - Start fresh, new target\n/language - Change language\n/status - Check your quota\n\nLet's get it 🔥`;
 
   bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
 
@@ -189,10 +189,10 @@ bot.onText(/\/status/, (msg) => {
       `Total messages sent: ${user.totalMessagesUsed}\n\n` +
       `You have unlimited access! Enjoy! 💎`;
   } else if (user.subscriptionStatus === 'free') {
-    const remaining = 5 - user.freeMessagesUsed;
+    const remaining = 50 - user.freeMessagesUsed;
     statusMessage = `📊 *Your Status*\n\n` +
       `Plan: Free Trial\n` +
-      `Responses used: ${user.freeMessagesUsed}/5\n` +
+      `Responses used: ${user.freeMessagesUsed}/50\n` +
       `Remaining: ${remaining}\n\n` +
       `Upgrade with /subscribe for 100 responses/month!`;
   } else if (user.subscriptionStatus === 'active') {
@@ -665,8 +665,8 @@ bot.on('callback_query', async (query) => {
     const user = db.getUser(chatId)!;
     let remaining = '';
     if (user.subscriptionStatus === 'free') {
-      const count = 5 - user.freeMessagesUsed;
-      remaining = `\n\nResponses remaining: ${count}/5`;
+      const count = 50 - user.freeMessagesUsed;
+      remaining = `\n\nResponses remaining: ${count}/50`;
     } else if (user.subscriptionStatus === 'active') {
       const count = 100 - user.monthlyQuotaUsed;
       remaining = `\n\nResponses remaining: ${count}/100`;

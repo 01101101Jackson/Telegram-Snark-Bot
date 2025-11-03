@@ -175,7 +175,7 @@ class Database {
 
     // Check if free tier
     if (user.subscriptionStatus === 'free') {
-      if (user.freeMessagesUsed >= 5) {
+      if (user.freeMessagesUsed >= 50) {
         return {
           allowed: false,
           reason: 'free_limit_reached',
