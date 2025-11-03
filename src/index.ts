@@ -75,7 +75,7 @@ bot.onText(/\/start/, (msg) => {
     user = db.createUser(chatId, username);
   }
 
-  const welcomeMessage = `💀 **RIZZ KING BOT**\n\nForward any message and I'll craft you the PERFECT toxic reply.\n\n✨ **5 FREE responses** to get you started\n\n**Commands:**\n/reset - Start fresh, new target\n/language - Change language\n/status - Check your quota\n\nLet's get it 🔥`;
+  const welcomeMessage = `💀 **RIZZ KING BOT**\n\n*Don't be yourself, be better.*\n\nForward any message and I'll craft you the PERFECT toxic reply.\n\n✨ **5 FREE responses** to get you started\n\n**Commands:**\n/reset - Start fresh, new target\n/language - Change language\n/status - Check your quota\n\nLet's get it 🔥`;
 
   bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
 });
@@ -391,14 +391,14 @@ bot.on('message', async (msg) => {
     // User needs to configure - ask for gender
     const configKeyboard = {
       inline_keyboard: [
-        [{ text: '👨 I am a MAN', callback_data: 'config_man' }],
-        [{ text: '👩 I am a WOMAN', callback_data: 'config_woman' }]
+        [{ text: '🔥 dude', callback_data: 'config_man' }],
+        [{ text: '💋 babe', callback_data: 'config_woman' }]
       ]
     };
 
     bot.sendMessage(
       chatId,
-      '💀 **WHO ARE YOU?**\n\nChoose your gender to get the perfect toxic energy.',
+      '💀 **WHO ARE YOU?**',
       { parse_mode: 'Markdown', reply_markup: configKeyboard }
     );
     return;
@@ -475,8 +475,8 @@ bot.on('callback_query', async (query) => {
     // Ask for target gender
     const targetKeyboard = {
       inline_keyboard: [
-        [{ text: '👨 Texting a MAN', callback_data: 'target_man' }],
-        [{ text: '👩 Texting a WOMAN', callback_data: 'target_woman' }]
+        [{ text: '👯 bitches', callback_data: 'target_woman' }],
+        [{ text: '💪 homies', callback_data: 'target_man' }]
       ]
     };
 
