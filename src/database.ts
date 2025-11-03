@@ -11,6 +11,11 @@ interface UserData {
   monthlyQuotaUsed: number;
   totalMessagesUsed: number;
   isVip: boolean;
+  // User preferences for response generation
+  userGender?: 'man' | 'woman' | 'other';
+  targetGender?: 'man' | 'woman' | 'other';
+  intent?: 'hookup' | 'friendzone' | 'longterm';
+  tone?: 'dirty' | 'flirty' | 'balanced' | 'cheesy' | 'pure';
   createdAt: Date;
   lastUsed: Date;
 }

@@ -20,40 +20,44 @@ if (!token) {
 
 const bot = new TelegramBot(token, { polling: true });
 
-// Store forwarded messages temporarily
+// Store forwarded messages and user preferences temporarily
 interface UserSession {
   messageText: string;
   messageId: number;
+  userGender?: 'man' | 'woman' | 'other';
+  targetGender?: 'man' | 'woman' | 'other';
+  intent?: 'hookup' | 'friendzone' | 'longterm';
+  tone?: 'dirty' | 'flirty' | 'balanced' | 'cheesy' | 'pure';
 }
 
 const userSessions = new Map<number, UserSession>();
 
-// Toxic response levels configuration
-const toxicLevels = {
+// Response levels configuration
+const responseLevels = {
   '1': {
-    name: '💀 Highly Vindictive & Toxic',
-    description: 'Highly vindictive and toxic response from a highly powerful dominating persona',
-    prompt: 'You text like a ruthless Gen Z with zero chill. Respond with BRUTAL toxicity and dominance. Use lowercase, no punctuation, text slang (lol, fr, nah, bruh), be absolutely devastating. ONE SHORT TEXT MESSAGE ONLY (max 10-15 words). Make it hurt. Add skull emoji 💀 if needed.'
+    name: '💪 Witty & Confident',
+    description: 'Sharp, witty, and supremely confident',
+    prompt: 'Text like a witty, confident Gen Z who owns every conversation. Be clever and sharp with your words. Use lowercase, no punctuation, text slang (fr, ngl, lowkey). ONE SHORT TEXT MESSAGE ONLY (max 10-15 words). Witty comeback energy. Add 💪 if it fits.'
   },
   '2': {
-    name: '🔥 Toxic & Direct',
-    description: 'Toxic and direct - no holds barred',
-    prompt: 'Text like a savage Gen Z. Be harsh, blunt, and cutting. Use lowercase, abbreviations (ur, bc, ngl, smh), no punctuation. ONE SHORT brutal text (max 10-15 words). Straight to the point, no fluff. Add fire emoji 🔥 if fits.'
+    name: '😎 Bold & Direct',
+    description: 'Bold, direct, and no-nonsense',
+    prompt: 'Text like a bold confident Gen Z. Be direct, assertive, and straightforward. Use lowercase, abbreviations (ur, bc, ngl, tbh), no punctuation. ONE SHORT direct text (max 10-15 words). Get to the point with confidence. Add 😎 if it fits.'
   },
   '3': {
-    name: '😎 Rizz Master',
-    description: 'Rizz master lady killer response',
+    name: '😏 Rizz Master',
+    description: 'Smooth, charming, irresistible',
     prompt: 'Text like a smooth confident Gen Z with infinite rizz. Use lowercase, casual slang (nah, bet, lowkey), emojis (😏😉). Make it SUPER short and smooth (max 10-15 words). Confident and playful. ONE text message only.'
   },
   '4': {
     name: '💕 Fun & Flirty',
-    description: 'Fun and flirty response',
+    description: 'Playful, flirty, and charming',
     prompt: 'Text like a flirty Gen Z. Lowercase, cute emojis (💕😊✨), casual language (haha, omg, lowkey). Keep it SHORT and playful (max 10-15 words). Tease them a bit. ONE quick flirty text only.'
   },
   '5': {
-    name: '🤗 Compassionate & Kind',
-    description: 'Compassionate and sympathetic (low toxic)',
-    prompt: 'Text like a sweet supportive Gen Z friend. Use lowercase, caring emojis (🤗💙), casual warm language (aww, youre ok, its gonna be fine). Super SHORT and kind (max 10-15 words). ONE comforting text message.'
+    name: '💝 Compassionate & Kind',
+    description: 'Warm, caring, and genuine',
+    prompt: 'Text like a sweet supportive Gen Z friend. Use lowercase, caring emojis (🤗💙💝), casual warm language (aww, youre ok, its gonna be fine). Super SHORT and kind (max 10-15 words). ONE comforting text message.'
   }
 };
 
@@ -285,6 +289,34 @@ bot.onText(/\/admin_activate (\d+)/, (msg, match) => {
   bot.sendMessage(targetUserId, '🎉 Your premium subscription has been activated!\n\nYou now have 100 responses/month.', { parse_mode: 'Markdown' }).catch(() => {});
 });
 
+// Handle /configure command
+bot.onText(/\/configure/, (msg) => {
+  const chatId = msg.chat.id;
+
+  let user = db.getUser(chatId);
+  if (!user) {
+    user = db.createUser(chatId, msg.from?.username);
+  }
+
+  const currentPrefs = user.userGender && user.targetGender && user.intent && user.tone
+    ? `\n\n*Current Settings:*\n• Your gender: ${user.userGender}\n• Texting: ${user.targetGender}\n• Intent: ${user.intent}\n• Tone: ${user.tone}`
+    : '\n\n*Not configured yet*';
+
+  // Clear their stored preferences so they'll be asked again on next message
+  db.updateUser(chatId, {
+    userGender: undefined,
+    targetGender: undefined,
+    intent: undefined,
+    tone: undefined
+  });
+
+  bot.sendMessage(
+    chatId,
+    `⚙️ *Response Configuration*${currentPrefs}\n\n✅ *Preferences cleared!*\n\nSend or forward a message now and you'll be asked to reconfigure your preferences.`,
+    { parse_mode: 'Markdown' }
+  );
+});
+
 // Admin help
 bot.onText(/\/admin$/, (msg) => {
   const chatId = msg.chat.id;
@@ -355,14 +387,41 @@ bot.on('message', async (msg) => {
     messageId: msg.message_id
   });
 
-  // Create inline keyboard with toxic levels
+  // Check if user has configured preferences
+  if (!user.userGender || !user.targetGender || !user.intent || !user.tone) {
+    // User needs to configure - start configuration flow
+    const configKeyboard = {
+      inline_keyboard: [
+        [{ text: '⚙️ Configure Preferences', callback_data: 'config_start' }],
+        [{ text: '⏭️ Skip (use defaults)', callback_data: 'config_skip' }]
+      ]
+    };
+
+    bot.sendMessage(
+      chatId,
+      '⚙️ *Configure Your Response Style*\n\nFor the best results, tell me a bit about your situation! This only takes 10 seconds.\n\nOr skip to use balanced defaults.',
+      { parse_mode: 'Markdown', reply_markup: configKeyboard }
+    );
+    return;
+  }
+
+  // Copy user preferences to session
+  const session = userSessions.get(chatId);
+  if (session) {
+    session.userGender = user.userGender;
+    session.targetGender = user.targetGender;
+    session.intent = user.intent;
+    session.tone = user.tone;
+  }
+
+  // Create inline keyboard with response levels
   const keyboard = {
     inline_keyboard: [
-      [{ text: toxicLevels['1'].name, callback_data: 'level_1' }],
-      [{ text: toxicLevels['2'].name, callback_data: 'level_2' }],
-      [{ text: toxicLevels['3'].name, callback_data: 'level_3' }],
-      [{ text: toxicLevels['4'].name, callback_data: 'level_4' }],
-      [{ text: toxicLevels['5'].name, callback_data: 'level_5' }]
+      [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
+      [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
+      [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
+      [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
+      [{ text: responseLevels['5'].name, callback_data: 'level_5' }]
     ]
   };
 
@@ -402,11 +461,220 @@ bot.on('callback_query', async (query) => {
     return;
   }
 
-  // Handle toxic level selection
-  if (data.startsWith('level_')) {
-    const level = data.replace('level_', '') as keyof typeof toxicLevels;
+  // Handle configuration flow
+  if (data === 'config_start' || data === 'config_skip') {
+    const session = userSessions.get(chatId);
+    if (!session) {
+      bot.answerCallbackQuery(query.id, { text: '❌ Session expired. Send message again.' });
+      return;
+    }
 
-    if (!level || !toxicLevels[level]) {
+    if (data === 'config_skip') {
+      // Set defaults
+      session.userGender = 'other';
+      session.targetGender = 'other';
+      session.intent = 'friendzone';
+      session.tone = 'balanced';
+
+      db.updateUser(chatId, {
+        userGender: 'other',
+        targetGender: 'other',
+        intent: 'friendzone',
+        tone: 'balanced'
+      });
+
+      bot.answerCallbackQuery(query.id, { text: '✅ Using balanced defaults' });
+
+      // Show response levels
+      const keyboard = {
+        inline_keyboard: [
+          [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
+          [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
+          [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
+          [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
+          [{ text: responseLevels['5'].name, callback_data: 'level_5' }]
+        ]
+      };
+
+      const user = db.getUser(chatId);
+      const chooseMessage = getMessage(user?.language as LanguageCode || 'en', 'chooseLevel');
+      bot.editMessageText(chooseMessage, {
+        chat_id: chatId,
+        message_id: messageId,
+        reply_markup: keyboard
+      });
+      return;
+    }
+
+    // Start configuration - ask for gender
+    const genderKeyboard = {
+      inline_keyboard: [
+        [{ text: '👨 Man', callback_data: 'gender_man' }],
+        [{ text: '👩 Woman', callback_data: 'gender_woman' }],
+        [{ text: '🌈 Other', callback_data: 'gender_other' }]
+      ]
+    };
+
+    bot.answerCallbackQuery(query.id);
+    bot.editMessageText('👤 *Step 1/4: Your Gender*\n\nI am a...', {
+      chat_id: chatId,
+      message_id: messageId,
+      parse_mode: 'Markdown',
+      reply_markup: genderKeyboard
+    });
+    return;
+  }
+
+  // Handle gender selection
+  if (data.startsWith('gender_')) {
+    const gender = data.replace('gender_', '') as 'man' | 'woman' | 'other';
+    const session = userSessions.get(chatId);
+    if (!session) {
+      bot.answerCallbackQuery(query.id, { text: '❌ Session expired' });
+      return;
+    }
+
+    session.userGender = gender;
+    bot.answerCallbackQuery(query.id);
+
+    // Ask for target gender
+    const targetKeyboard = {
+      inline_keyboard: [
+        [{ text: '👨 Man', callback_data: 'target_man' }],
+        [{ text: '👩 Woman', callback_data: 'target_woman' }],
+        [{ text: '🌈 Other', callback_data: 'target_other' }]
+      ]
+    };
+
+    bot.editMessageText('💬 *Step 2/4: Who are you texting?*\n\nTexting a...', {
+      chat_id: chatId,
+      message_id: messageId,
+      parse_mode: 'Markdown',
+      reply_markup: targetKeyboard
+    });
+    return;
+  }
+
+  // Handle target gender selection
+  if (data.startsWith('target_')) {
+    const target = data.replace('target_', '') as 'man' | 'woman' | 'other';
+    const session = userSessions.get(chatId);
+    if (!session) {
+      bot.answerCallbackQuery(query.id, { text: '❌ Session expired' });
+      return;
+    }
+
+    session.targetGender = target;
+    bot.answerCallbackQuery(query.id);
+
+    // Ask for intent
+    const intentKeyboard = {
+      inline_keyboard: [
+        [{ text: '🔥 Hook up / Casual', callback_data: 'intent_hookup' }],
+        [{ text: '💍 Long-term / Serious', callback_data: 'intent_longterm' }],
+        [{ text: '🤝 Just friends', callback_data: 'intent_friendzone' }]
+      ]
+    };
+
+    bot.editMessageText('🎯 *Step 3/4: Your Intent*\n\nWhat\'s your goal?', {
+      chat_id: chatId,
+      message_id: messageId,
+      parse_mode: 'Markdown',
+      reply_markup: intentKeyboard
+    });
+    return;
+  }
+
+  // Handle intent selection
+  if (data.startsWith('intent_')) {
+    const intent = data.replace('intent_', '') as 'hookup' | 'friendzone' | 'longterm';
+    const session = userSessions.get(chatId);
+    if (!session) {
+      bot.answerCallbackQuery(query.id, { text: '❌ Session expired' });
+      return;
+    }
+
+    session.intent = intent;
+    bot.answerCallbackQuery(query.id);
+
+    // Ask for tone
+    const toneKeyboard = {
+      inline_keyboard: [
+        [{ text: '🌶️ Dirty Talk', callback_data: 'tone_dirty' }],
+        [{ text: '😏 Flirty', callback_data: 'tone_flirty' }],
+        [{ text: '💬 Balanced', callback_data: 'tone_balanced' }],
+        [{ text: '🧀 Cheesy', callback_data: 'tone_cheesy' }],
+        [{ text: '💝 Pure/Sweet', callback_data: 'tone_pure' }]
+      ]
+    };
+
+    bot.editMessageText('🎨 *Step 4/4: Tone*\n\nHow should I respond?', {
+      chat_id: chatId,
+      message_id: messageId,
+      parse_mode: 'Markdown',
+      reply_markup: toneKeyboard
+    });
+    return;
+  }
+
+  // Handle tone selection
+  if (data.startsWith('tone_')) {
+    const tone = data.replace('tone_', '') as 'dirty' | 'flirty' | 'balanced' | 'cheesy' | 'pure';
+    const session = userSessions.get(chatId);
+
+    // Get temporary config data from previous selections
+    // For reconfiguration without active session, we need to track state differently
+    // For now, we'll require the configuration to happen within a message session
+    if (!session) {
+      // This is a standalone reconfiguration - just save the tone selection
+      // We need to track the previous selections somehow
+      // For simplicity, let's require users to send a message first
+      bot.answerCallbackQuery(query.id, { text: '❌ Please send a message first to configure.' });
+      bot.editMessageText(
+        '❌ Configuration incomplete.\n\nPlease send or forward a message first, then configure your preferences.',
+        { chat_id: chatId, message_id: messageId }
+      );
+      return;
+    }
+
+    session.tone = tone;
+
+    // Save preferences to database
+    db.updateUser(chatId, {
+      userGender: session.userGender,
+      targetGender: session.targetGender,
+      intent: session.intent,
+      tone: session.tone
+    });
+
+    bot.answerCallbackQuery(query.id, { text: '✅ Preferences saved!' });
+
+    // Show response levels
+    const keyboard = {
+      inline_keyboard: [
+        [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
+        [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
+        [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
+        [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
+        [{ text: responseLevels['5'].name, callback_data: 'level_5' }]
+      ]
+    };
+
+    const user = db.getUser(chatId);
+    const chooseMessage = getMessage(user?.language as LanguageCode || 'en', 'chooseLevel');
+    bot.editMessageText(chooseMessage, {
+      chat_id: chatId,
+      message_id: messageId,
+      reply_markup: keyboard
+    });
+    return;
+  }
+
+  // Handle response level selection
+  if (data.startsWith('level_')) {
+    const level = data.replace('level_', '') as keyof typeof responseLevels;
+
+    if (!level || !responseLevels[level]) {
       bot.answerCallbackQuery(query.id, { text: '❌ Invalid level selected' });
       return;
     }
@@ -425,7 +693,7 @@ bot.on('callback_query', async (query) => {
     }
 
     // Answer the callback query to remove loading state
-    bot.answerCallbackQuery(query.id, { text: `Generating ${toxicLevels[level].name} response...` });
+    bot.answerCallbackQuery(query.id, { text: `Generating ${responseLevels[level].name} response...` });
 
     // Edit the message to show loading
     const generatingMessage = getMessage(user.language as LanguageCode, 'generating');
@@ -440,7 +708,36 @@ bot.on('callback_query', async (query) => {
     try {
       // Generate response using OpenAI
       const languageInstruction = getLanguagePrompt(user.language as LanguageCode);
-      const fullPrompt = toxicLevels[level].prompt + ' ' + languageInstruction;
+
+      // Build context from user preferences
+      let contextPrompt = '';
+      if (session.userGender && session.targetGender) {
+        const genderContext = session.userGender === 'other' ? 'person' : session.userGender;
+        const targetContext = session.targetGender === 'other' ? 'person' : session.targetGender;
+        contextPrompt += `You are a ${genderContext} texting a ${targetContext}. `;
+      }
+
+      if (session.intent) {
+        const intentMap = {
+          hookup: 'Your goal is casual/flirty hookup vibes.',
+          longterm: 'Your goal is serious relationship material.',
+          friendzone: 'Keep it friendly and platonic.'
+        };
+        contextPrompt += intentMap[session.intent] + ' ';
+      }
+
+      if (session.tone) {
+        const toneMap = {
+          dirty: 'Use DIRTY, suggestive language.',
+          flirty: 'Be flirty and playful.',
+          balanced: 'Keep it balanced and natural.',
+          cheesy: 'Go EXTRA cheesy with romantic lines.',
+          pure: 'Be wholesome, pure, and sweet.'
+        };
+        contextPrompt += toneMap[session.tone] + ' ';
+      }
+
+      const fullPrompt = contextPrompt + responseLevels[level].prompt + ' ' + languageInstruction;
 
       const response = await generateResponse(session.messageText, fullPrompt);
 
@@ -450,7 +747,7 @@ bot.on('callback_query', async (query) => {
       // Send the generated response
       bot.sendMessage(
         chatId,
-        `${toxicLevels[level].name}\n\n"${response}"`,
+        `${responseLevels[level].name}\n\n"${response}"`,
         { parse_mode: 'Markdown' }
       );
 
