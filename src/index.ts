@@ -286,7 +286,7 @@ bot.onText(/\/admin_activate (\d+)/, (msg, match) => {
 });
 
 // Admin help
-bot.onText(/\/admin/, (msg) => {
+bot.onText(/\/admin$/, (msg) => {
   const chatId = msg.chat.id;
 
   if (!isAdmin(chatId)) {
