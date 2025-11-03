@@ -295,13 +295,13 @@ bot.onText(/\/admin$/, (msg) => {
 
   const helpMessage = `🔧 *Admin Commands*\n\n` +
     `*VIP Management:*\n` +
-    `/admin_vip <userId> - Grant unlimited access\n` +
-    `/admin_revoke <userId> - Remove VIP status\n` +
-    `/admin_vips - List all VIP users\n\n` +
+    `/admin\\_vip <userId> - Grant unlimited access\n` +
+    `/admin\\_revoke <userId> - Remove VIP status\n` +
+    `/admin\\_vips - List all VIP users\n\n` +
     `*Subscription:*\n` +
-    `/admin_activate <userId> - Give 1 month premium\n\n` +
+    `/admin\\_activate <userId> - Give 1 month premium\n\n` +
     `*Stats:*\n` +
-    `/admin_users - View user statistics\n\n` +
+    `/admin\\_users - View user statistics\n\n` +
     `*Your Chat ID:* ${chatId}`;
 
   bot.sendMessage(chatId, helpMessage, { parse_mode: 'Markdown' });
