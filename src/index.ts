@@ -24,40 +24,43 @@ const bot = new TelegramBot(token, { polling: true });
 interface UserSession {
   messageText: string;
   messageId: number;
-  userGender?: 'man' | 'woman' | 'other';
-  targetGender?: 'man' | 'woman' | 'other';
-  intent?: 'hookup' | 'friendzone' | 'longterm';
-  tone?: 'dirty' | 'flirty' | 'balanced' | 'cheesy' | 'pure';
+  userGender?: 'man' | 'woman';
+  targetGender?: 'man' | 'woman';
 }
 
 const userSessions = new Map<number, UserSession>();
 
-// Response levels configuration
+// Response levels configuration - MAX TOXIC ENERGY
 const responseLevels = {
   '1': {
-    name: '💪 Witty & Confident',
-    description: 'Sharp, witty, and supremely confident',
-    prompt: 'Text like a witty, confident Gen Z who owns every conversation. Be clever and sharp with your words. Use lowercase, no punctuation, text slang (fr, ngl, lowkey). ONE SHORT TEXT MESSAGE ONLY (max 10-15 words). Witty comeback energy. Add 💪 if it fits.'
+    name: '💀 Toxic & Nasty',
+    description: 'Brutal, savage, zero mercy',
+    prompt: 'You are RUTHLESS. Text like the most savage, cutthroat person alive. Be BRUTAL, devastating, and absolutely toxic. Use lowercase, no punctuation, max slang (lmao, fr, nahh). DESTROY them with words. ONE SHORT BRUTAL TEXT (max 10-15 words). Make it HURT.'
   },
   '2': {
-    name: '😎 Bold & Direct',
-    description: 'Bold, direct, and no-nonsense',
-    prompt: 'Text like a bold confident Gen Z. Be direct, assertive, and straightforward. Use lowercase, abbreviations (ur, bc, ngl, tbh), no punctuation. ONE SHORT direct text (max 10-15 words). Get to the point with confidence. Add 😎 if it fits.'
+    name: '🔥 Pure Dirty',
+    description: 'Absolute filth, no limits',
+    prompt: 'You are PURE FILTH. Text with MAXIMUM sexual energy, dirty innuendos, and explicit vibes. Be NASTY and suggestive. Use lowercase, slang, be absolutely inappropriate and sexual. ONE SHORT FILTHY TEXT (max 10-15 words). Make it NSFW.'
   },
   '3': {
-    name: '😏 Rizz Master',
-    description: 'Smooth, charming, irresistible',
-    prompt: 'Text like a smooth confident Gen Z with infinite rizz. Use lowercase, casual slang (nah, bet, lowkey), emojis (😏😉). Make it SUPER short and smooth (max 10-15 words). Confident and playful. ONE text message only.'
+    name: '😈 Rizz King',
+    description: 'Smooth operator, irresistible',
+    prompt: 'You are the KING/QUEEN of rizz. Text like you OWN them already. Be smooth, confident, and absolutely irresistible. Use lowercase, cocky energy (bet, fs, ngl). ONE SHORT TEXT with MAXIMUM rizz (max 10-15 words). Pure seduction.'
   },
   '4': {
-    name: '💕 Fun & Flirty',
-    description: 'Playful, flirty, and charming',
-    prompt: 'Text like a flirty Gen Z. Lowercase, cute emojis (💕😊✨), casual language (haha, omg, lowkey). Keep it SHORT and playful (max 10-15 words). Tease them a bit. ONE quick flirty text only.'
+    name: '🎭 Dry Wit',
+    description: 'Sarcastic, clever, sharp',
+    prompt: 'You have DRY WIT and sharp sarcasm. Text like you are too smart and bored. Be clever, sarcastic, slightly condescending. Use lowercase, minimal effort vibes. ONE SHORT WITTY TEXT (max 10-15 words). Intelligence with attitude.'
   },
   '5': {
-    name: '💝 Compassionate & Kind',
-    description: 'Warm, caring, and genuine',
-    prompt: 'Text like a sweet supportive Gen Z friend. Use lowercase, caring emojis (🤗💙💝), casual warm language (aww, youre ok, its gonna be fine). Super SHORT and kind (max 10-15 words). ONE comforting text message.'
+    name: '✨ Charming',
+    description: 'Smooth, likeable, magnetic',
+    prompt: 'You are EFFORTLESSLY CHARMING. Text like you make everyone fall for you without trying. Be smooth, likeable, confident but not cocky. Use lowercase, natural rizz. ONE SHORT CHARMING TEXT (max 10-15 words). Pure magnetism.'
+  },
+  '6': {
+    name: '🧀 Pure Cheese',
+    description: 'Over-the-top romantic, cringe worthy',
+    prompt: 'You are MAXIMUM CHEESE. Text the CORNIEST, most romantic, cringe-inducing pickup lines ever. Be over-the-top, ridiculously romantic. Use lowercase and emoji overload. ONE SHORT CHEESY TEXT (max 10-15 words). So cringe it works.'
   }
 };
 
@@ -72,7 +75,8 @@ bot.onText(/\/start/, (msg) => {
     user = db.createUser(chatId, username);
   }
 
-  const welcomeMessage = getMessage(user.language as LanguageCode, 'welcome');
+  const welcomeMessage = `💀 **RIZZ KING BOT**\n\nForward any message and I'll craft you the PERFECT toxic reply.\n\n✨ **5 FREE responses** to get you started\n\n**Commands:**\n/reset - Start fresh, new target\n/language - Change language\n/status - Check your quota\n\nLet's get it 🔥`;
+
   bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
 });
 
@@ -289,8 +293,8 @@ bot.onText(/\/admin_activate (\d+)/, (msg, match) => {
   bot.sendMessage(targetUserId, '🎉 Your premium subscription has been activated!\n\nYou now have 100 responses/month.', { parse_mode: 'Markdown' }).catch(() => {});
 });
 
-// Handle /configure command
-bot.onText(/\/configure/, (msg) => {
+// Handle /reset command
+bot.onText(/\/reset/, (msg) => {
   const chatId = msg.chat.id;
 
   let user = db.getUser(chatId);
@@ -298,21 +302,16 @@ bot.onText(/\/configure/, (msg) => {
     user = db.createUser(chatId, msg.from?.username);
   }
 
-  const currentPrefs = user.userGender && user.targetGender && user.intent && user.tone
-    ? `\n\n*Current Settings:*\n• Your gender: ${user.userGender}\n• Texting: ${user.targetGender}\n• Intent: ${user.intent}\n• Tone: ${user.tone}`
-    : '\n\n*Not configured yet*';
-
-  // Clear their stored preferences so they'll be asked again on next message
+  // Clear chat history and preferences
+  db.clearChatHistory(chatId);
   db.updateUser(chatId, {
     userGender: undefined,
-    targetGender: undefined,
-    intent: undefined,
-    tone: undefined
+    targetGender: undefined
   });
 
   bot.sendMessage(
     chatId,
-    `⚙️ *Response Configuration*${currentPrefs}\n\n✅ *Preferences cleared!*\n\nSend or forward a message now and you'll be asked to reconfigure your preferences.`,
+    `🔄 **RESET COMPLETE**\n\nChat history cleared. Fresh start.\n\nSend a message and I'll ask who you are and who you're texting.`,
     { parse_mode: 'Markdown' }
   );
 });
@@ -387,19 +386,19 @@ bot.on('message', async (msg) => {
     messageId: msg.message_id
   });
 
-  // Check if user has configured preferences
-  if (!user.userGender || !user.targetGender || !user.intent || !user.tone) {
-    // User needs to configure - start configuration flow
+  // Check if user has configured gender
+  if (!user.userGender || !user.targetGender) {
+    // User needs to configure - ask for gender
     const configKeyboard = {
       inline_keyboard: [
-        [{ text: '⚙️ Configure Preferences', callback_data: 'config_start' }],
-        [{ text: '⏭️ Skip (use defaults)', callback_data: 'config_skip' }]
+        [{ text: '👨 I am a MAN', callback_data: 'config_man' }],
+        [{ text: '👩 I am a WOMAN', callback_data: 'config_woman' }]
       ]
     };
 
     bot.sendMessage(
       chatId,
-      '⚙️ *Configure Your Response Style*\n\nFor the best results, tell me a bit about your situation! This only takes 10 seconds.\n\nOr skip to use balanced defaults.',
+      '💀 **WHO ARE YOU?**\n\nChoose your gender to get the perfect toxic energy.',
       { parse_mode: 'Markdown', reply_markup: configKeyboard }
     );
     return;
@@ -410,22 +409,21 @@ bot.on('message', async (msg) => {
   if (session) {
     session.userGender = user.userGender;
     session.targetGender = user.targetGender;
-    session.intent = user.intent;
-    session.tone = user.tone;
   }
 
-  // Create inline keyboard with response levels
+  // Create inline keyboard with response levels (now 6 options)
   const keyboard = {
     inline_keyboard: [
       [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
       [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
       [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
       [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
-      [{ text: responseLevels['5'].name, callback_data: 'level_5' }]
+      [{ text: responseLevels['5'].name, callback_data: 'level_5' }],
+      [{ text: responseLevels['6'].name, callback_data: 'level_6' }]
     ]
   };
 
-  const chooseMessage = getMessage(user.language as LanguageCode, 'chooseLevel');
+  const chooseMessage = `🎯 **PICK YOUR WEAPON**\n\nChoose your response style:`;
 
   // Send message with response level options
   bot.sendMessage(
@@ -461,92 +459,28 @@ bot.on('callback_query', async (query) => {
     return;
   }
 
-  // Handle configuration flow
-  if (data === 'config_start' || data === 'config_skip') {
+  // Handle user gender selection (config_man / config_woman)
+  if (data === 'config_man' || data === 'config_woman') {
     const session = userSessions.get(chatId);
     if (!session) {
       bot.answerCallbackQuery(query.id, { text: '❌ Session expired. Send message again.' });
       return;
     }
 
-    if (data === 'config_skip') {
-      // Set defaults
-      session.userGender = 'other';
-      session.targetGender = 'other';
-      session.intent = 'friendzone';
-      session.tone = 'balanced';
+    const userGender = data === 'config_man' ? 'man' : 'woman';
+    session.userGender = userGender;
 
-      db.updateUser(chatId, {
-        userGender: 'other',
-        targetGender: 'other',
-        intent: 'friendzone',
-        tone: 'balanced'
-      });
-
-      bot.answerCallbackQuery(query.id, { text: '✅ Using balanced defaults' });
-
-      // Show response levels
-      const keyboard = {
-        inline_keyboard: [
-          [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
-          [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
-          [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
-          [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
-          [{ text: responseLevels['5'].name, callback_data: 'level_5' }]
-        ]
-      };
-
-      const user = db.getUser(chatId);
-      const chooseMessage = getMessage(user?.language as LanguageCode || 'en', 'chooseLevel');
-      bot.editMessageText(chooseMessage, {
-        chat_id: chatId,
-        message_id: messageId,
-        reply_markup: keyboard
-      });
-      return;
-    }
-
-    // Start configuration - ask for gender
-    const genderKeyboard = {
-      inline_keyboard: [
-        [{ text: '👨 Man', callback_data: 'gender_man' }],
-        [{ text: '👩 Woman', callback_data: 'gender_woman' }],
-        [{ text: '🌈 Other', callback_data: 'gender_other' }]
-      ]
-    };
-
-    bot.answerCallbackQuery(query.id);
-    bot.editMessageText('👤 *Step 1/4: Your Gender*\n\nI am a...', {
-      chat_id: chatId,
-      message_id: messageId,
-      parse_mode: 'Markdown',
-      reply_markup: genderKeyboard
-    });
-    return;
-  }
-
-  // Handle gender selection
-  if (data.startsWith('gender_')) {
-    const gender = data.replace('gender_', '') as 'man' | 'woman' | 'other';
-    const session = userSessions.get(chatId);
-    if (!session) {
-      bot.answerCallbackQuery(query.id, { text: '❌ Session expired' });
-      return;
-    }
-
-    session.userGender = gender;
     bot.answerCallbackQuery(query.id);
 
     // Ask for target gender
     const targetKeyboard = {
       inline_keyboard: [
-        [{ text: '👨 Man', callback_data: 'target_man' }],
-        [{ text: '👩 Woman', callback_data: 'target_woman' }],
-        [{ text: '🌈 Other', callback_data: 'target_other' }]
+        [{ text: '👨 Texting a MAN', callback_data: 'target_man' }],
+        [{ text: '👩 Texting a WOMAN', callback_data: 'target_woman' }]
       ]
     };
 
-    bot.editMessageText('💬 *Step 2/4: Who are you texting?*\n\nTexting a...', {
+    bot.editMessageText('💬 **WHO ARE YOU TEXTING?**', {
       chat_id: chatId,
       message_id: messageId,
       parse_mode: 'Markdown',
@@ -557,7 +491,7 @@ bot.on('callback_query', async (query) => {
 
   // Handle target gender selection
   if (data.startsWith('target_')) {
-    const target = data.replace('target_', '') as 'man' | 'woman' | 'other';
+    const target = data.replace('target_', '') as 'man' | 'woman';
     const session = userSessions.get(chatId);
     if (!session) {
       bot.answerCallbackQuery(query.id, { text: '❌ Session expired' });
@@ -565,106 +499,31 @@ bot.on('callback_query', async (query) => {
     }
 
     session.targetGender = target;
-    bot.answerCallbackQuery(query.id);
 
-    // Ask for intent
-    const intentKeyboard = {
-      inline_keyboard: [
-        [{ text: '🔥 Hook up / Casual', callback_data: 'intent_hookup' }],
-        [{ text: '💍 Long-term / Serious', callback_data: 'intent_longterm' }],
-        [{ text: '🤝 Just friends', callback_data: 'intent_friendzone' }]
-      ]
-    };
-
-    bot.editMessageText('🎯 *Step 3/4: Your Intent*\n\nWhat\'s your goal?', {
-      chat_id: chatId,
-      message_id: messageId,
-      parse_mode: 'Markdown',
-      reply_markup: intentKeyboard
-    });
-    return;
-  }
-
-  // Handle intent selection
-  if (data.startsWith('intent_')) {
-    const intent = data.replace('intent_', '') as 'hookup' | 'friendzone' | 'longterm';
-    const session = userSessions.get(chatId);
-    if (!session) {
-      bot.answerCallbackQuery(query.id, { text: '❌ Session expired' });
-      return;
-    }
-
-    session.intent = intent;
-    bot.answerCallbackQuery(query.id);
-
-    // Ask for tone
-    const toneKeyboard = {
-      inline_keyboard: [
-        [{ text: '🌶️ Dirty Talk', callback_data: 'tone_dirty' }],
-        [{ text: '😏 Flirty', callback_data: 'tone_flirty' }],
-        [{ text: '💬 Balanced', callback_data: 'tone_balanced' }],
-        [{ text: '🧀 Cheesy', callback_data: 'tone_cheesy' }],
-        [{ text: '💝 Pure/Sweet', callback_data: 'tone_pure' }]
-      ]
-    };
-
-    bot.editMessageText('🎨 *Step 4/4: Tone*\n\nHow should I respond?', {
-      chat_id: chatId,
-      message_id: messageId,
-      parse_mode: 'Markdown',
-      reply_markup: toneKeyboard
-    });
-    return;
-  }
-
-  // Handle tone selection
-  if (data.startsWith('tone_')) {
-    const tone = data.replace('tone_', '') as 'dirty' | 'flirty' | 'balanced' | 'cheesy' | 'pure';
-    const session = userSessions.get(chatId);
-
-    // Get temporary config data from previous selections
-    // For reconfiguration without active session, we need to track state differently
-    // For now, we'll require the configuration to happen within a message session
-    if (!session) {
-      // This is a standalone reconfiguration - just save the tone selection
-      // We need to track the previous selections somehow
-      // For simplicity, let's require users to send a message first
-      bot.answerCallbackQuery(query.id, { text: '❌ Please send a message first to configure.' });
-      bot.editMessageText(
-        '❌ Configuration incomplete.\n\nPlease send or forward a message first, then configure your preferences.',
-        { chat_id: chatId, message_id: messageId }
-      );
-      return;
-    }
-
-    session.tone = tone;
-
-    // Save preferences to database
+    // Save to database
     db.updateUser(chatId, {
       userGender: session.userGender,
-      targetGender: session.targetGender,
-      intent: session.intent,
-      tone: session.tone
+      targetGender: session.targetGender
     });
 
-    bot.answerCallbackQuery(query.id, { text: '✅ Preferences saved!' });
+    bot.answerCallbackQuery(query.id, { text: '✅ Let\'s go!' });
 
-    // Show response levels
+    // Show response levels (6 options now)
     const keyboard = {
       inline_keyboard: [
         [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
         [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
         [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
         [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
-        [{ text: responseLevels['5'].name, callback_data: 'level_5' }]
+        [{ text: responseLevels['5'].name, callback_data: 'level_5' }],
+        [{ text: responseLevels['6'].name, callback_data: 'level_6' }]
       ]
     };
 
-    const user = db.getUser(chatId);
-    const chooseMessage = getMessage(user?.language as LanguageCode || 'en', 'chooseLevel');
-    bot.editMessageText(chooseMessage, {
+    bot.editMessageText('🎯 **PICK YOUR WEAPON**\n\nChoose your response style:', {
       chat_id: chatId,
       message_id: messageId,
+      parse_mode: 'Markdown',
       reply_markup: keyboard
     });
     return;
@@ -709,37 +568,31 @@ bot.on('callback_query', async (query) => {
       // Generate response using OpenAI
       const languageInstruction = getLanguagePrompt(user.language as LanguageCode);
 
-      // Build context from user preferences
+      // Build context from gender dynamics - MAX TOXIC PERSONAS
       let contextPrompt = '';
       if (session.userGender && session.targetGender) {
-        const genderContext = session.userGender === 'other' ? 'person' : session.userGender;
-        const targetContext = session.targetGender === 'other' ? 'person' : session.targetGender;
-        contextPrompt += `You are a ${genderContext} texting a ${targetContext}. `;
-      }
-
-      if (session.intent) {
-        const intentMap = {
-          hookup: 'Your goal is casual/flirty hookup vibes.',
-          longterm: 'Your goal is serious relationship material.',
-          friendzone: 'Keep it friendly and platonic.'
-        };
-        contextPrompt += intentMap[session.intent] + ' ';
-      }
-
-      if (session.tone) {
-        const toneMap = {
-          dirty: 'Use DIRTY, suggestive language.',
-          flirty: 'Be flirty and playful.',
-          balanced: 'Keep it balanced and natural.',
-          cheesy: 'Go EXTRA cheesy with romantic lines.',
-          pure: 'Be wholesome, pure, and sweet.'
-        };
-        contextPrompt += toneMap[session.tone] + ' ';
+        // Gender-specific personas (Regina George / Mr. Gray energy)
+        if (session.userGender === 'woman' && session.targetGender === 'man') {
+          contextPrompt += 'You are a REGINA GEORGE level queen. Cold, calculating, devastatingly hot, and you KNOW it. ';
+        } else if (session.userGender === 'man' && session.targetGender === 'woman') {
+          contextPrompt += 'You are a MR. GRAY level alpha. Dominant, mysterious, cocky confidence. You run the game. ';
+        } else if (session.userGender === 'woman' && session.targetGender === 'woman') {
+          contextPrompt += 'You are a CONFIDENT BAD BITCH texting another woman. Alpha energy, no games. ';
+        } else if (session.userGender === 'man' && session.targetGender === 'man') {
+          contextPrompt += 'You are the ALPHA BRO. Dominant, cocky, zero weakness shown. ';
+        }
       }
 
       const fullPrompt = contextPrompt + responseLevels[level].prompt + ' ' + languageInstruction;
 
-      const response = await generateResponse(session.messageText, fullPrompt);
+      // Get chat history for context
+      const chatHistory = db.getChatHistory(chatId);
+
+      const response = await generateResponse(session.messageText, fullPrompt, chatHistory);
+
+      // Save to chat history
+      db.addToChatHistory(chatId, 'user', session.messageText);
+      db.addToChatHistory(chatId, 'assistant', response);
 
       // Increment message count
       db.incrementMessageCount(chatId);
@@ -789,19 +642,32 @@ bot.on('callback_query', async (query) => {
 });
 
 // Function to generate response using OpenAI
-async function generateResponse(messageText: string, systemPrompt: string): Promise<string> {
+async function generateResponse(messageText: string, systemPrompt: string, chatHistory: Array<{role: 'user' | 'assistant', content: string}>): Promise<string> {
+  const messages: Array<{role: 'system' | 'user' | 'assistant', content: string}> = [
+    {
+      role: 'system',
+      content: systemPrompt
+    }
+  ];
+
+  // Add chat history for context (last 8 messages)
+  const recentHistory = chatHistory.slice(-8);
+  for (const msg of recentHistory) {
+    messages.push({
+      role: msg.role,
+      content: msg.content
+    });
+  }
+
+  // Add current message
+  messages.push({
+    role: 'user',
+    content: messageText
+  });
+
   const completion = await openai.chat.completions.create({
     model: 'gpt-3.5-turbo',
-    messages: [
-      {
-        role: 'system',
-        content: systemPrompt
-      },
-      {
-        role: 'user',
-        content: messageText
-      }
-    ],
+    messages,
     max_tokens: 50,
     temperature: 0.9,
   });

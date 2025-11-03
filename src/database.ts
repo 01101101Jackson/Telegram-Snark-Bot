@@ -1,6 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
+interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
+
 interface UserData {
   userId: number;
   username?: string;
@@ -12,10 +18,10 @@ interface UserData {
   totalMessagesUsed: number;
   isVip: boolean;
   // User preferences for response generation
-  userGender?: 'man' | 'woman' | 'other';
-  targetGender?: 'man' | 'woman' | 'other';
-  intent?: 'hookup' | 'friendzone' | 'longterm';
-  tone?: 'dirty' | 'flirty' | 'balanced' | 'cheesy' | 'pure';
+  userGender?: 'man' | 'woman';
+  targetGender?: 'man' | 'woman';
+  // Chat history for context (last 10 messages)
+  chatHistory: ChatMessage[];
   createdAt: Date;
   lastUsed: Date;
 }
@@ -40,6 +46,7 @@ class Database {
             parseInt(key),
             {
               ...value,
+              chatHistory: value.chatHistory || [],
               createdAt: new Date(value.createdAt),
               lastUsed: new Date(value.lastUsed),
               subscriptionExpiry: value.subscriptionExpiry
@@ -83,12 +90,51 @@ class Database {
       monthlyQuotaUsed: 0,
       totalMessagesUsed: 0,
       isVip: false,
+      chatHistory: [],
       createdAt: new Date(),
       lastUsed: new Date(),
     };
     this.users.set(userId, user);
     this.save();
     return user;
+  }
+
+  // Chat history management
+  addToChatHistory(userId: number, role: 'user' | 'assistant', content: string) {
+    const user = this.users.get(userId);
+    if (!user) return;
+
+    if (!user.chatHistory) {
+      user.chatHistory = [];
+    }
+
+    user.chatHistory.push({
+      role,
+      content,
+      timestamp: new Date()
+    });
+
+    // Keep only last 10 messages
+    if (user.chatHistory.length > 10) {
+      user.chatHistory = user.chatHistory.slice(-10);
+    }
+
+    this.users.set(userId, user);
+    this.save();
+  }
+
+  getChatHistory(userId: number): ChatMessage[] {
+    const user = this.users.get(userId);
+    return user?.chatHistory || [];
+  }
+
+  clearChatHistory(userId: number) {
+    const user = this.users.get(userId);
+    if (user) {
+      user.chatHistory = [];
+      this.users.set(userId, user);
+      this.save();
+    }
   }
 
   updateUser(userId: number, updates: Partial<UserData>) {
@@ -222,4 +268,4 @@ class Database {
 }
 
 export const db = new Database();
-export { UserData };
+export { UserData, ChatMessage };
