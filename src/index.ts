@@ -466,12 +466,12 @@ bot.on('message', async (msg) => {
       [{ text: levels['3'].name, callback_data: 'level_3' }],
       [{ text: levels['4'].name, callback_data: 'level_4' }]
     ] : [
-      [{ text: levels['1'].name, callback_data: 'level_1' }],
-      [{ text: levels['2'].name, callback_data: 'level_2' }],
-      [{ text: levels['3'].name, callback_data: 'level_3' }],
-      [{ text: levels['4'].name, callback_data: 'level_4' }],
-      [{ text: levels['5'].name, callback_data: 'level_5' }],
-      [{ text: levels['6'].name, callback_data: 'level_6' }]
+      [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
+      [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
+      [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
+      [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
+      [{ text: responseLevels['5'].name, callback_data: 'level_5' }],
+      [{ text: responseLevels['6'].name, callback_data: 'level_6' }]
     ]
   };
 
@@ -615,12 +615,12 @@ bot.on('callback_query', async (query) => {
         [{ text: levels['3'].name, callback_data: 'level_3' }],
         [{ text: levels['4'].name, callback_data: 'level_4' }]
       ] : [
-        [{ text: levels['1'].name, callback_data: 'level_1' }],
-        [{ text: levels['2'].name, callback_data: 'level_2' }],
-        [{ text: levels['3'].name, callback_data: 'level_3' }],
-        [{ text: levels['4'].name, callback_data: 'level_4' }],
-        [{ text: levels['5'].name, callback_data: 'level_5' }],
-        [{ text: levels['6'].name, callback_data: 'level_6' }]
+        [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
+        [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
+        [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
+        [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
+        [{ text: responseLevels['5'].name, callback_data: 'level_5' }],
+        [{ text: responseLevels['6'].name, callback_data: 'level_6' }]
       ]
     };
 
@@ -705,12 +705,12 @@ bot.on('callback_query', async (query) => {
         [{ text: levels['3'].name, callback_data: 'level_3' }],
         [{ text: levels['4'].name, callback_data: 'level_4' }]
       ] : [
-        [{ text: levels['1'].name, callback_data: 'level_1' }],
-        [{ text: levels['2'].name, callback_data: 'level_2' }],
-        [{ text: levels['3'].name, callback_data: 'level_3' }],
-        [{ text: levels['4'].name, callback_data: 'level_4' }],
-        [{ text: levels['5'].name, callback_data: 'level_5' }],
-        [{ text: levels['6'].name, callback_data: 'level_6' }]
+        [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
+        [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
+        [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
+        [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
+        [{ text: responseLevels['5'].name, callback_data: 'level_5' }],
+        [{ text: responseLevels['6'].name, callback_data: 'level_6' }]
       ]
     };
 
