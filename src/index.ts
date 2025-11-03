@@ -78,7 +78,7 @@ bot.onText(/\/start/, (msg) => {
     user = db.createUser(chatId, username);
   }
 
-  const welcomeMessage = `💀 **RIZZ KING BOT**\n\n*Don't be yourself, be better.*\n\nForward any message and I'll craft you the PERFECT toxic reply.\n\n✨ **5 FREE responses** to get you started\n\n**Commands:**\n/reset - Start fresh, new target\n/language - Change language\n/status - Check your quota\n\nLet's get it 🔥`;
+  const welcomeMessage = `👑 **RIZZ KING BOT**\n\n*Don't be yourself, be better.*\n\nForward any message and I'll craft you the PERFECT toxic reply.\n\n✨ **5 FREE responses** to get you started\n\n**Commands:**\n/reset - Start fresh, new target\n/language - Change language\n/status - Check your quota\n\nLet's get it 🔥`;
 
   bot.sendMessage(chatId, welcomeMessage, { parse_mode: 'Markdown' });
 
@@ -86,14 +86,14 @@ bot.onText(/\/start/, (msg) => {
   if (!user.userGender || !user.targetGender) {
     const configKeyboard = {
       inline_keyboard: [
-        [{ text: '🔥 dude', callback_data: 'start_config_man' }],
-        [{ text: '💋 babe', callback_data: 'start_config_woman' }]
+        [{ text: "I'm a dude", callback_data: 'start_config_man' }],
+        [{ text: "I'm a babe", callback_data: 'start_config_woman' }]
       ]
     };
 
     bot.sendMessage(
       chatId,
-      '💀 **WHO ARE YOU?**',
+      '👑 **WHO ARE YOU?**',
       { parse_mode: 'Markdown', reply_markup: configKeyboard }
     );
   }
@@ -410,14 +410,14 @@ bot.on('message', async (msg) => {
     // User needs to configure - ask for gender
     const configKeyboard = {
       inline_keyboard: [
-        [{ text: '🔥 dude', callback_data: 'config_man' }],
-        [{ text: '💋 babe', callback_data: 'config_woman' }]
+        [{ text: "I'm a dude", callback_data: 'config_man' }],
+        [{ text: "I'm a babe", callback_data: 'config_woman' }]
       ]
     };
 
     bot.sendMessage(
       chatId,
-      '💀 **WHO ARE YOU?**',
+      '👑 **WHO ARE YOU?**',
       { parse_mode: 'Markdown', reply_markup: configKeyboard }
     );
     return;
@@ -490,8 +490,8 @@ bot.on('callback_query', async (query) => {
     // Ask for target gender
     const targetKeyboard = {
       inline_keyboard: [
-        [{ text: '👯 bitches', callback_data: 'start_target_woman' }],
-        [{ text: '💪 homies', callback_data: 'start_target_man' }]
+        [{ text: 'texting my bitch', callback_data: 'start_target_woman' }],
+        [{ text: 'texting my homies', callback_data: 'start_target_man' }]
       ]
     };
 
@@ -537,8 +537,8 @@ bot.on('callback_query', async (query) => {
     // Ask for target gender
     const targetKeyboard = {
       inline_keyboard: [
-        [{ text: '👯 bitches', callback_data: 'target_woman' }],
-        [{ text: '💪 homies', callback_data: 'target_man' }]
+        [{ text: 'texting my bitch', callback_data: 'target_woman' }],
+        [{ text: 'texting my homies', callback_data: 'target_man' }]
       ]
     };
 
