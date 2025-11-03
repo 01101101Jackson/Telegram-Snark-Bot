@@ -33,7 +33,7 @@ interface UserSession {
 
 const userSessions = new Map<number, UserSession>();
 
-// Response levels configuration - MAX TOXIC ENERGY
+// Response levels configuration - MAX TOXIC ENERGY (for opposite sex / romantic)
 const responseLevels = {
   '1': {
     name: '💀 Toxic & Nasty',
@@ -64,6 +64,30 @@ const responseLevels = {
     name: '🧀 Pure Cheese',
     description: 'Over-the-top romantic, cringe worthy',
     prompt: 'You are MAXIMUM CHEESE. Text the CORNIEST, most romantic, cringe-inducing pickup lines ever. Be over-the-top, ridiculously romantic. Use lowercase and emoji overload. ONE SHORT CHEESY TEXT (max 10-15 words). So cringe it works.'
+  }
+};
+
+// Response levels for HOMIES (same gender / friends)
+const homiesLevels = {
+  '1': {
+    name: '💯 my nigga',
+    description: 'Homeboy gangsta persona, uncensored rude boy',
+    prompt: 'You are a REAL ONE. Text like a gangsta homeboy with ZERO filter. Be rude, raw, uncensored, street energy. Use slang (nigga, bro, fam, deadass, on god). Be absolutely unfiltered and real. ONE SHORT TEXT (max 10-15 words). Keep it 💯.'
+  },
+  '2': {
+    name: '🔱 basic fucking legend',
+    description: 'The guy everyone wants to be',
+    prompt: 'You are the ALPHA everyone wants to be. Text like the most witty, funny, confident, cool person in the group. Natural leader energy. Use lowercase, be effortlessly funny and cool. ONE SHORT TEXT (max 10-15 words). Main character vibes.'
+  },
+  '3': {
+    name: '🤪 weird guy',
+    description: 'Extremely odd, short dry humor',
+    prompt: 'You are the WEIRD GUY with bizarre dry humor. Text something extremely odd, unexpected, and deadpan. Confuse them with your randomness. Use lowercase, be absurdly short and strange. ONE SHORT WEIRD TEXT (max 10-15 words). Make them go "wtf".'
+  },
+  '4': {
+    name: '😂 comedian',
+    description: 'The comedian of the group',
+    prompt: 'You are the GROUP COMEDIAN. Text something genuinely FUNNY that makes everyone laugh. Be witty, clever, perfect timing. Use lowercase, natural humor. ONE SHORT HILARIOUS TEXT (max 10-15 words). Make them laugh out loud.'
   }
 };
 
@@ -430,15 +454,24 @@ bot.on('message', async (msg) => {
     session.targetGender = user.targetGender;
   }
 
-  // Create inline keyboard with response levels (now 6 options)
+  // Check if texting same gender (homies) or opposite sex
+  const isHomies = user.userGender === user.targetGender;
+  const levels = isHomies ? homiesLevels : responseLevels;
+
+  // Create inline keyboard with appropriate response levels
   const keyboard = {
-    inline_keyboard: [
-      [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
-      [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
-      [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
-      [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
-      [{ text: responseLevels['5'].name, callback_data: 'level_5' }],
-      [{ text: responseLevels['6'].name, callback_data: 'level_6' }]
+    inline_keyboard: isHomies ? [
+      [{ text: levels['1'].name, callback_data: 'level_1' }],
+      [{ text: levels['2'].name, callback_data: 'level_2' }],
+      [{ text: levels['3'].name, callback_data: 'level_3' }],
+      [{ text: levels['4'].name, callback_data: 'level_4' }]
+    ] : [
+      [{ text: levels['1'].name, callback_data: 'level_1' }],
+      [{ text: levels['2'].name, callback_data: 'level_2' }],
+      [{ text: levels['3'].name, callback_data: 'level_3' }],
+      [{ text: levels['4'].name, callback_data: 'level_4' }],
+      [{ text: levels['5'].name, callback_data: 'level_5' }],
+      [{ text: levels['6'].name, callback_data: 'level_6' }]
     ]
   };
 
@@ -570,15 +603,24 @@ bot.on('callback_query', async (query) => {
 
     bot.answerCallbackQuery(query.id, { text: '✅ Let\'s go!' });
 
-    // Show response levels (6 options now)
+    // Check if texting same gender (homies) or opposite sex
+    const isHomies = session.userGender === session.targetGender;
+    const levels = isHomies ? homiesLevels : responseLevels;
+
+    // Show appropriate response levels
     const keyboard = {
-      inline_keyboard: [
-        [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
-        [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
-        [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
-        [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
-        [{ text: responseLevels['5'].name, callback_data: 'level_5' }],
-        [{ text: responseLevels['6'].name, callback_data: 'level_6' }]
+      inline_keyboard: isHomies ? [
+        [{ text: levels['1'].name, callback_data: 'level_1' }],
+        [{ text: levels['2'].name, callback_data: 'level_2' }],
+        [{ text: levels['3'].name, callback_data: 'level_3' }],
+        [{ text: levels['4'].name, callback_data: 'level_4' }]
+      ] : [
+        [{ text: levels['1'].name, callback_data: 'level_1' }],
+        [{ text: levels['2'].name, callback_data: 'level_2' }],
+        [{ text: levels['3'].name, callback_data: 'level_3' }],
+        [{ text: levels['4'].name, callback_data: 'level_4' }],
+        [{ text: levels['5'].name, callback_data: 'level_5' }],
+        [{ text: levels['6'].name, callback_data: 'level_6' }]
       ]
     };
 
@@ -651,15 +693,24 @@ bot.on('callback_query', async (query) => {
 
     bot.answerCallbackQuery(query.id, { text: '🔄 Choose another style...' });
 
-    // Show response levels again (6 options)
+    // Check if texting same gender (homies) or opposite sex
+    const isHomies = session.userGender === session.targetGender;
+    const levels = isHomies ? homiesLevels : responseLevels;
+
+    // Show appropriate response levels again
     const keyboard = {
-      inline_keyboard: [
-        [{ text: responseLevels['1'].name, callback_data: 'level_1' }],
-        [{ text: responseLevels['2'].name, callback_data: 'level_2' }],
-        [{ text: responseLevels['3'].name, callback_data: 'level_3' }],
-        [{ text: responseLevels['4'].name, callback_data: 'level_4' }],
-        [{ text: responseLevels['5'].name, callback_data: 'level_5' }],
-        [{ text: responseLevels['6'].name, callback_data: 'level_6' }]
+      inline_keyboard: isHomies ? [
+        [{ text: levels['1'].name, callback_data: 'level_1' }],
+        [{ text: levels['2'].name, callback_data: 'level_2' }],
+        [{ text: levels['3'].name, callback_data: 'level_3' }],
+        [{ text: levels['4'].name, callback_data: 'level_4' }]
+      ] : [
+        [{ text: levels['1'].name, callback_data: 'level_1' }],
+        [{ text: levels['2'].name, callback_data: 'level_2' }],
+        [{ text: levels['3'].name, callback_data: 'level_3' }],
+        [{ text: levels['4'].name, callback_data: 'level_4' }],
+        [{ text: levels['5'].name, callback_data: 'level_5' }],
+        [{ text: levels['6'].name, callback_data: 'level_6' }]
       ]
     };
 
@@ -673,12 +724,7 @@ bot.on('callback_query', async (query) => {
 
   // Handle response level selection
   if (data.startsWith('level_')) {
-    const level = data.replace('level_', '') as keyof typeof responseLevels;
-
-    if (!level || !responseLevels[level]) {
-      bot.answerCallbackQuery(query.id, { text: '❌ Invalid level selected' });
-      return;
-    }
+    const level = data.replace('level_', '');
 
     // Get user
     let user = db.getUser(chatId);
@@ -693,8 +739,20 @@ bot.on('callback_query', async (query) => {
       return;
     }
 
+    // Determine which levels to use (homies or romantic)
+    const isHomies = session.userGender === session.targetGender;
+    const levels = isHomies ? homiesLevels : responseLevels;
+
+    // Validate level exists
+    if (!level || !levels[level as keyof typeof levels]) {
+      bot.answerCallbackQuery(query.id, { text: '❌ Invalid level selected' });
+      return;
+    }
+
+    const selectedLevel = levels[level as keyof typeof levels];
+
     // Answer the callback query to remove loading state
-    bot.answerCallbackQuery(query.id, { text: `Generating ${responseLevels[level].name} response...` });
+    bot.answerCallbackQuery(query.id, { text: `Generating ${selectedLevel.name} response...` });
 
     // Edit the message to show loading
     const generatingMessage = getMessage(user.language as LanguageCode, 'generating');
@@ -710,22 +768,23 @@ bot.on('callback_query', async (query) => {
       // Generate response using OpenAI
       const languageInstruction = getLanguagePrompt(user.language as LanguageCode);
 
-      // Build context from gender dynamics - MAX TOXIC PERSONAS
+      // Build context from gender dynamics
       let contextPrompt = '';
       if (session.userGender && session.targetGender) {
-        // Gender-specific personas (Regina George / Mr. Gray energy)
-        if (session.userGender === 'woman' && session.targetGender === 'man') {
-          contextPrompt += 'You are a REGINA GEORGE level queen. Cold, calculating, devastatingly hot, and you KNOW it. ';
-        } else if (session.userGender === 'man' && session.targetGender === 'woman') {
-          contextPrompt += 'You are a MR. GRAY level alpha. Dominant, mysterious, cocky confidence. You run the game. ';
-        } else if (session.userGender === 'woman' && session.targetGender === 'woman') {
-          contextPrompt += 'You are a CONFIDENT BAD BITCH texting another woman. Alpha energy, no games. ';
-        } else if (session.userGender === 'man' && session.targetGender === 'man') {
-          contextPrompt += 'You are the ALPHA BRO. Dominant, cocky, zero weakness shown. ';
+        if (!isHomies) {
+          // Opposite sex - romantic personas (Regina George / Mr. Gray energy)
+          if (session.userGender === 'woman' && session.targetGender === 'man') {
+            contextPrompt += 'You are a REGINA GEORGE level queen. Cold, calculating, devastatingly hot, and you KNOW it. ';
+          } else if (session.userGender === 'man' && session.targetGender === 'woman') {
+            contextPrompt += 'You are a MR. GRAY level alpha. Dominant, mysterious, cocky confidence. You run the game. ';
+          }
+        } else {
+          // Same gender - homies energy
+          contextPrompt += 'You are texting your HOMIE. Bros being bros. Keep it real, no romance vibes. ';
         }
       }
 
-      const fullPrompt = contextPrompt + responseLevels[level].prompt + ' ' + languageInstruction;
+      const fullPrompt = contextPrompt + selectedLevel.prompt + ' ' + languageInstruction;
 
       // Get chat history for context
       const chatHistory = db.getChatHistory(chatId);
@@ -739,7 +798,7 @@ bot.on('callback_query', async (query) => {
       // Send the generated response with action buttons
       const sentMessage = await bot.sendMessage(
         chatId,
-        `${responseLevels[level].name}\n\n"${response}"`,
+        `${selectedLevel.name}\n\n"${response}"`,
         {
           parse_mode: 'Markdown',
           reply_markup: {
